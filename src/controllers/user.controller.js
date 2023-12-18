@@ -7,15 +7,20 @@ import fs from "node:fs/promises";
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    const userInstance = new User();
+    const accessToken = userInstance.generateAccessToken(user, (token) => {
+      return token;
+    });
+    const refreshToken = userInstance.generateRefreshToken(user, (token) => {
+      return token;
+    });
     user.refreshToken = refreshToken;
     // here i am saving the refresh token in the db
     await user.save({ ValiditeBeforeSave: false });
     // this will actually bypass all the validation checks in mentioned in the model
     return { accessToken, refreshToken };
   } catch (error) {
-    throw new ApiError(
+        throw new ApiError(
       500,
       "Something went wrong while generating refresh and access token"
     );
@@ -35,8 +40,9 @@ const registerUser = asyncHandler(async (req, res) => {
     });
 
     if (existingUser) {
-      throw ApiError(409, "User Already exists");
+      throw new ApiError(409, "User Already exists");
     }
+    console.log("req.files:", req.files);
     const avatarLocalPath = req.files?.avatar[0]?.path;
     const coverImageLocalPath =
       req.files?.coverImage?.length > 0 ? req.files?.coverImage[0].path : "";
@@ -45,6 +51,7 @@ const registerUser = asyncHandler(async (req, res) => {
     }
     const avatar = await uploadOnCloudinary(avatarLocalPath);
     const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
     if (!avatar) {
       throw new ApiError(400, "Avatar file is required");
     }
@@ -57,14 +64,18 @@ const registerUser = asyncHandler(async (req, res) => {
       password,
       username: username.toLowerCase(),
     });
+
     const foundUser = await User.findById(user._id).select(
       "-password -refreshToken"
     );
     if (!foundUser) {
       throw new ApiError(400, "something went wrong in registering");
     }
-    if (avatarLocalPath.length > 0 && coverImageLocalPath.length > 0) {
+
+    if (avatarLocalPath && coverImageLocalPath) {
       await fs.unlink(avatarLocalPath);
+    }
+    if (coverImageLocalPath) {
       await fs.unlink(coverImageLocalPath);
     }
     return res
@@ -72,17 +83,12 @@ const registerUser = asyncHandler(async (req, res) => {
       .json(new ApiRespnse(200, foundUser, "User registered successfully"));
   } catch (error) {
     console.log("error:", error);
-    throw new ApiError(400, error);
+    res.status(500).json(new ApiError(400, error));
   }
 });
 const loginUser = asyncHandler(async (req, res) => {
-  // req,body
-  // username or email
-  // find the user
-  // password check
-  // access and refresh token
-  // send cookie
   const { email, username, password } = req.body;
+
   if (!(username || email)) {
     throw new ApiError(400, "username or email is required");
   }
@@ -113,7 +119,7 @@ const loginUser = asyncHandler(async (req, res) => {
     .json(
       new ApiRespnse(
         200,
-        { user: loggedInUser, accessToken, refreshToken },
+        { loggedInUser, accessToken, refreshToken },
         "User Logged In Successfully"
       )
     );
