@@ -75,15 +75,12 @@ userSchema.methods.generateAccessToken = function (data, cb) {
     }
   );
 
- return cb(null, token);
+  return cb(null, token);
 };
 userSchema.methods.generateRefreshToken = function (data, cb) {
   const token = Jwt.sign(
     {
       _id: data._id,
-      email: data.email,
-      username: data.username,
-      fullName: data.fullnamee,
     },
     process.env.REFRESH_TOKEN_SECRET,
     {
