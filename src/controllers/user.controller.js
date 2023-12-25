@@ -6,6 +6,7 @@ import { ApiRespnse } from "../utils/response.js";
 import fs from "node:fs/promises";
 import jwt from "jsonwebtoken";
 import deleteExistingImage from "../utils/deleteExistingImage.js";
+import mongoose from "mongoose";
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -370,6 +371,62 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       );
   }
 });
+const getWatchHistory = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.aggregate([
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(req.user._id),
+        },
+      },
+      {
+        $lookup: {
+          from: "Videos",
+          localField: "watchHistory",
+          foreignField: "_id",
+          as: "watchHistory",
+          pipeline: [
+            {
+              $lookup: {
+                from: "Users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                  {
+                    $project: {
+                      fullname: 1,
+                      username: 1,
+                      avatar: 1,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $addFields: {
+                owner: {
+                  $first: "$owner",
+                },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    return res.status(200).send(new ApiRespnse(200, user[0].watchHistory));
+  } catch (error) {
+    return res
+      .status(500)
+      .send(
+        new ApiError(
+          500,
+          "Something went wrong while getting the channel information"
+        )
+      );
+  }
+});
 export {
   registerUser,
   loginUser,
@@ -380,4 +437,5 @@ export {
   updateUserCoverImage,
   updateUserAvatar,
   getUserChannelProfile,
+  getWatchHistory
 };
