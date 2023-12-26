@@ -3,7 +3,6 @@ import { ApiError } from "../utils/error.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/fileupload.js";
 import { ApiRespnse } from "../utils/response.js";
-import fs from "node:fs/promises";
 import jwt from "jsonwebtoken";
 import deleteExistingImage from "../utils/deleteExistingImage.js";
 import mongoose from "mongoose";
@@ -414,7 +413,6 @@ const getWatchHistory = asyncHandler(async (req, res) => {
         },
       },
     ]);
-
     return res.status(200).send(new ApiRespnse(200, user[0].watchHistory));
   } catch (error) {
     return res
@@ -437,5 +435,5 @@ export {
   updateUserCoverImage,
   updateUserAvatar,
   getUserChannelProfile,
-  getWatchHistory
+  getWatchHistory,
 };
